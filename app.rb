@@ -12,19 +12,35 @@ BULK_LIMIT = 50
 post '/' do
   request.body.rewind
   payload_body = request.body.read
-  puts "==============================================================="
+
+  puts "== method ======================================================"
+  puts request.request_method
+  puts "== GET ========================================================="
+  puts request.env["QUERY_STRING"] if request.env["QUERY_STRING"]
+ # puts JSON.pretty_generate(request.env["rack.request.query_hash"]) rescue nil
+ # puts "== POST ======================================================="
+ # puts JSON.pretty_generate(request.env["rack.request.form_hash"]) rescue nil
+ # puts "== request body    ============================================"
+#  puts request.body
+  puts "== PARAMS ====================================================="
+  puts params.inspect
+  puts "== Webhook payload ============================================"
   puts payload_body
   puts "==============================================================="
-  data = JSON.parse(payload_body)
-  data["type"]
-  if data["type"] == "url_verification"
-    return data["challenge"];
-  elsif data["type"] == "event_callback" && data["event"]["type"] == "message" && data["event"]["thread_ts"]
-    echo "Send to Intercom!";
-  end
+  begin
+    data = JSON.parse(payload_body)
+    data["type"]
+    if data["type"] == "url_verification"
+      return data["challenge"];
+    elsif data["type"] == "event_callback" && data["event"]["type"] == "message" && data["event"]["thread_ts"]
+      puts "Send to Intercom!";
+    end
 
-  verify_signature(payload_body)
-  puts "Topic Recieved: #{data['topic']}"
+    verify_signature(payload_body)
+    puts "Topic Recieved: #{data['topic']}"
+  rescue
+    puts "Payload not JSON formatted"
+  end
 end
 
 def verify_signature(payload_body)

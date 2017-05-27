@@ -216,8 +216,10 @@ def processToSlack(raw_data)
   slack_thread_id = nil
   slack_thread_id = mapping.slack_ts_id if mapping
 
-  puts "convo: #{convo_id} comment: #{part["id"]}"
-  ignore = IgnoreWebhook.where(:intercom_convo_id => convo_id,:intercom_comment_id => part["id"]).first
+  if part
+    puts "convo: #{convo_id} comment: #{part["id"]}"
+    ignore = IgnoreWebhook.where(:intercom_convo_id => convo_id,:intercom_comment_id => part["id"]).first
+  end
   puts "Ingore DB data: #{ignore}"
   if ignore
     puts "Ignore webhook as message was sent from Slack!"

@@ -27,6 +27,10 @@ end
 get '/1' do    
   return 200, "1 #{DateTime.now}"
 end
+get '/init' do
+  UserMapping.create({slack_user_id: "U02JGGQR6", intercom_admin_id: 248698})
+  return 200, "1 #{DateTime.now}"
+end
 
 # Process Slack data
 post '/' do

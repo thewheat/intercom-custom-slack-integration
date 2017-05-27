@@ -1,0 +1,15 @@
+development:
+  adapter: postgresql
+  encoding: unicode
+  database: dev
+  pool: 2
+  username: 
+  password: 
+
+production:
+  adapter: postgresql
+  encoding: unicode
+  database: prod
+  pool: 2
+  username: 
+  password: 

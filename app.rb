@@ -229,13 +229,12 @@ def processToSlack(raw_data)
     puts "convo: #{convo_id} comment: #{part["id"]}"
     ignore = IgnoreWebhook.where(:intercom_convo_id => convo_id,:intercom_comment_id => part["id"]).first
   end
-  puts "Ingore DB data: #{ignore}"
+  puts "Ignore DB data: #{ignore}"
   if ignore
     puts "Ignore webhook as message was sent from Slack!"
   else
     puts "Not from slack Send notification to Slack"
-    slack_ts_id = response["ts"]
-    response = postToSlack(slack_ts_id ? output_threaded : output, slack_thread_id, {
+    response = postToSlack(slack_thread_id ? output_threaded : output, slack_thread_id, {
       text_details: text_details,
       reply_type: {
         user_reply: user_reply,
@@ -246,6 +245,7 @@ def processToSlack(raw_data)
         new_message: new_message,
       }
     })
+    slack_ts_id = response["ts"]
     puts "Response from Slack #{response}"
     Mapping.create({intercom_convo_id: convo_id, slack_ts_id: slack_ts_id}) if !mapping
   end

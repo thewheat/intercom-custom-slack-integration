@@ -172,7 +172,7 @@ def processToSlack(raw_data)
     raw_markdown = ReverseMarkdown.convert(raw_text).gsub(/!\[\]\((.*)\)/,"\\1")
     slack_markdown = Slack::Notifier::Util::LinkFormatter.format(raw_markdown)
 
-    text_details = " #{text_details}with text\n\n#{slack_markdown}\n" if text_details_source["body"]
+    text_details = " #{text_details}\n\n#{slack_markdown}\n" if text_details_source["body"]
     if text_details_source["attachments"].count > 0
       attachment_text = text_details_source['attachments'].map{|a|
         "-<#{a['url']}|#{a['name']}>"
@@ -201,8 +201,8 @@ def processToSlack(raw_data)
 
     
     if assignee
-      assignee_text = " and assigned to"
-      assignee_text = " to" if assignee && assignment
+      assignee_text = "and assigned to "
+      assignee_text = " to " if assignee && assignment
 
       if assignee["type"] == "nobody_admin"
         assigned_name = "Nobody / Unassigned"
@@ -210,15 +210,19 @@ def processToSlack(raw_data)
         assigned_name = "#{assignee['name']}"
         assigned_name = "themselves" if admin['id'] == assignee['id']
         #assigned_name = "#{assigned_name} (#{assignee['id']})"
-        link_to_admin = "https://app.intercom.io/a/apps/#{app_id}/admins/#{assignee['id']}"
-        assigned_name = "<#{link_to_admin}|#{assigned_name}>"
+        link_to_assigned = "https://app.intercom.io/a/apps/#{app_id}/admins/#{assignee['id']}"
+        assigned_name = "<#{link_to_assigned}|#{assigned_name}>"
         
       end
-      assignee_text = " #{assignee_text} #{assigned_name}"
+      assignee_text = "#{assignee_text} #{assigned_name}"
     end
 
     admin_text = "Unknown admin"
-    admin_text = "#{admin['name']} (#{admin['id']})" if admin
+    
+    if admin
+      link_to_admin = "https://app.intercom.io/a/apps/#{app_id}/admins/#{admin['id']}"
+      admin_text = "<#{link_to_admin}|#{admin['name']}>"
+    end
 
     conversation_details = ""
     conversation_details = " with <#{user_link}|#{formatUserDisplayName(user)}>" if user

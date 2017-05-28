@@ -5,6 +5,7 @@ require 'sinatra/activerecord'
 require './models/mapping'
 require './models/user_mapping'
 require './models/ignore_webhook'
+require './models/slack_webhook'
 require 'httparty'
 require "reverse_markdown"
 require 'slack-notifier'
@@ -47,21 +48,27 @@ post '/' do
     if data["type"] == "url_verification"
       return data["challenge"];
     elsif data["type"] == "event_callback" && data["event"]["type"] == "message" && data["event"]["thread_ts"]
-      puts "Check if should send? Sleep to see if that allows processing";
-      sleep(3)
-      mapping = Mapping.where(:slack_ts_id => data["event"]["thread_ts"]).first
-      if mapping.nil? or mapping.intercom_convo_id.nil?
-        puts "No mapping data can't send"
+      slack_event_id = data["event_id"]
+      webhook = SlackWebhook.where(:slack_event_id => slack_event_id).first
+      if webhook
+        puts "Already processed this event #{slack_event_id}. Ignoring";
       else
-        user_mapping = UserMapping.where(:slack_user_id => data["event"]["user"]).first
-        if user_mapping.nil? or user_mapping.intercom_admin_id.nil?
-          puts "No user mapping data"
+        SlackWebhook.create({:slack_event_id => slack_event_id})
+        puts "Check if should send? Sleep to see if that allows processing";
+        mapping = Mapping.where(:slack_ts_id => data["event"]["thread_ts"]).first
+        if mapping.nil? or mapping.intercom_convo_id.nil?
+          puts "No mapping data can't send"
         else
-          puts "Send to Intercom!";
-          init_intercom
-          response = @intercom.conversations.reply(id: mapping.intercom_convo_id, type: 'admin', admin_id: user_mapping.intercom_admin_id, message_type: 'comment', body: data["event"]["text"])
-          puts "API response: convo_id: #{response.id} coment_id: #{response.conversation_parts.last.id}"
-          IgnoreWebhook.create({intercom_convo_id: response.id, intercom_comment_id: response.conversation_parts.last.id})
+          user_mapping = UserMapping.where(:slack_user_id => data["event"]["user"]).first
+          if user_mapping.nil? or user_mapping.intercom_admin_id.nil?
+            puts "No user mapping data"
+          else
+            puts "Send to Intercom!";
+            init_intercom
+            response = @intercom.conversations.reply(id: mapping.intercom_convo_id, type: 'admin', admin_id: user_mapping.intercom_admin_id, message_type: 'comment', body: data["event"]["text"])
+            puts "API response: convo_id: #{response.id} coment_id: #{response.conversation_parts.last.id}"
+            IgnoreWebhook.create({intercom_convo_id: response.id, intercom_comment_id: response.conversation_parts.last.id})
+          end
         end
       end
     end

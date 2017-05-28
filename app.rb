@@ -181,7 +181,8 @@ def processToSlack(raw_data)
     else
       text = "replied to"
     end
-    output = "<#{user_link}|#{formatUserDisplayName(user)}> #{text} a <#{link_to_convo}|conversation (#{conversation['id']})>#{text_details}"
+    output = "<#{user_link}|#{formatUserDisplayName(user)}> #{text} <#{link_to_convo}|conversation (#{conversation['id']})>#{text_details}"
+    output_threaded = "<#{user_link}|#{formatUserDisplayName(user)}> #{text.gsub(/ to$/,'')}#{text_details}"
 
   else
     text = "replied to"
@@ -201,7 +202,10 @@ def processToSlack(raw_data)
       else
         assigned_name = "#{assignee['name']}"
         assigned_name = "themselves" if admin['id'] == assignee['id']
-        assigned_name = "#{assigned_name} (#{assignee['id']})"
+        #assigned_name = "#{assigned_name} (#{assignee['id']})"
+        link_to_admin = "https://app.intercom.io/a/apps/#{app_id}/admins/#{assignee['id']}"
+        assigned_name = "<#{link_to_admin}|#{assigned_name}>"
+        
       end
       assignee_text = " #{assignee_text} #{assigned_name}"
     end
@@ -213,6 +217,7 @@ def processToSlack(raw_data)
     conversation_details = " with <#{user_link}|#{formatUserDisplayName(user)}>" if user
 
     output = "#{admin_text} #{text} <#{link_to_convo}|conversation (#{conversation['id']})>#{conversation_details}#{assignee_text}#{text_details}"
+    output_threaded = "#{admin_text} #{text.gsub(/ to$/,'')} #{assignee_text}#{text_details}"
   end
   convo_id = conversation["id"];
 
@@ -229,7 +234,8 @@ def processToSlack(raw_data)
     puts "Ignore webhook as message was sent from Slack!"
   else
     puts "Not from slack Send notification to Slack"
-    response = postToSlack(output, slack_thread_id, {
+    slack_ts_id = response["ts"]
+    response = postToSlack(slack_ts_id ? output_threaded : output, slack_thread_id, {
       text_details: text_details,
       reply_type: {
         user_reply: user_reply,
@@ -241,7 +247,7 @@ def processToSlack(raw_data)
       }
     })
     puts "Response from Slack #{response}"
-    Mapping.create({intercom_convo_id: convo_id, slack_ts_id: response["ts"]}) if !mapping
+    Mapping.create({intercom_convo_id: convo_id, slack_ts_id: slack_ts_id}) if !mapping
   end
 end
 def getColour (reply_type)

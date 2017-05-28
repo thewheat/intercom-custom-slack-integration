@@ -6,7 +6,9 @@ require './models/mapping'
 require './models/user_mapping'
 require './models/ignore_webhook'
 require './models/slack_webhook'
+require './models/slack_reply'
 require 'httparty'
+require 'sanitize'
 require "reverse_markdown"
 require 'slack-notifier'
 
@@ -65,6 +67,7 @@ post '/' do
           else
             puts "Send to Intercom!";
             init_intercom
+            SlackReply.create({intercom_admin_id: user_mapping.intercom_admin_id, slack_thread_id: data["event"]["thread_ts"], slack_text: Sanitize.fragment(data["event"]["text"]).gsub(/\s+/, "")})
             response = @intercom.conversations.reply(id: mapping.intercom_convo_id, type: 'admin', admin_id: user_mapping.intercom_admin_id, message_type: 'comment', body: data["event"]["text"])
             puts "API response: convo_id: #{response.id} coment_id: #{response.conversation_parts.last.id}"
             IgnoreWebhook.create({intercom_convo_id: response.id, intercom_comment_id: response.conversation_parts.last.id})
@@ -241,28 +244,36 @@ def processToSlack(raw_data)
   slack_thread_id = mapping.slack_ts_id if mapping
 
   if part
-    puts "convo: #{convo_id} comment: #{part["id"]}"
+    puts "Convo: #{convo_id} Comment: #{part["id"]}"
     ignore = IgnoreWebhook.where(:intercom_convo_id => convo_id,:intercom_comment_id => part["id"]).first
   end
-  puts "Ignore DB data: #{ignore}"
+
   if ignore
-    puts "Ignore webhook as message was sent from Slack!"
+    puts "Ignore webhook: Message was sent from Slack! (identified from comment_id)"
   else
-    puts "Not from slack Send notification to Slack"
-    response = postToSlack(slack_thread_id ? output_threaded : output, slack_thread_id, {
-      text_details: text_details,
-      reply_type: {
-        user_reply: user_reply,
-        note: note,
-        closed: closed,
-        opened: opened,
-        assignment: assignment,
-        new_message: new_message,
-      }
-    })
-    slack_ts_id = response["ts"]
-    puts "Response from Slack #{response}"
-    Mapping.create({intercom_convo_id: convo_id, slack_ts_id: slack_ts_id}) if !mapping
+    if raw_text && slack_thread_id
+      reply_was_from_slack = SlackReply.where({intercom_admin_id: admin["id"], slack_thread_id: slack_thread_id, slack_text: Sanitize.fragment(raw_text).gsub(/\s+/, "")}).first
+    end
+
+    if reply_was_from_slack 
+      puts "Ignore webhook: Message was sent from Slack! (identified from admin and text)"
+    else
+      puts "Not from slack Send notification to Slack"
+      response = postToSlack(slack_thread_id ? output_threaded : output, slack_thread_id, {
+        text_details: text_details,
+        reply_type: {
+          user_reply: user_reply,
+          note: note,
+          closed: closed,
+          opened: opened,
+          assignment: assignment,
+          new_message: new_message,
+        }
+      })
+      slack_ts_id = response["ts"]
+      puts "Response from Slack #{response}"
+      Mapping.create({intercom_convo_id: convo_id, slack_ts_id: slack_ts_id}) if !mapping
+    end
   end
 end
 def getColour (reply_type)

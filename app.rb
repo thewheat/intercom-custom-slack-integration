@@ -201,8 +201,12 @@ def processToSlack(raw_data)
 
     
     if assignee
-      assignee_text = "and assigned to "
-      assignee_text = " to " if assignee && assignment
+      assignee_text = "and assigned to"
+      assignee_text = "to" if assignee && assignment
+      if part["part_type"] == ""
+        text = "away mode reassigned"
+        assignee_text = "to"
+      end
 
       if assignee["type"] == "nobody_admin"
         assigned_name = "Nobody / Unassigned"
@@ -228,7 +232,7 @@ def processToSlack(raw_data)
     conversation_details = " with <#{user_link}|#{formatUserDisplayName(user)}>" if user
 
     output = "#{admin_text} #{text} <#{link_to_convo}|conversation (#{conversation['id']})>#{conversation_details}#{assignee_text}#{text_details}"
-    output_threaded = "#{admin_text} #{text.gsub(/ to$/,'')} #{assignee_text}#{text_details}"
+    output_threaded = "#{admin_text} #{text.gsub(/ to$/,'')} #{assignee_text} #{text_details}"
   end
   convo_id = conversation["id"];
 
